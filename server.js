@@ -1,9 +1,10 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, Intents } = require('discord.js');
+const { Client, GatewayIntentBits, Intents, MessageAttachment } = require('discord.js');
 const axios = require('axios');
 
-const apiUrl = 'https://api.tmrace.net/v1/chat/completions';
+const apiUrl = 'https://reverse.mubi.tech/v1/chat/completions';
+const imageApiUrl = 'https://reverse.mubi.tech/image/generate';
 const token = process.env.DISCORD_TOKEN;
 
 const client = new Client({
@@ -45,7 +46,50 @@ client.on('interactionCreate', async (interaction) => {
       console.error('Error fetching AI response:', error.message);
       await interaction.followUp('Error fetching AI response. Please try again later.');
     }
+  } else if (commandName === 'image') {
+    const prompt = options.getString('prompt');
+    const requestedModel = options.getString('model');
+
+    try {
+      // Call the Image Generator API
+      const imageResponse = await generateImage({ PROMPT: prompt, MODEL: requestedModel });
+
+      // Send the Image Generator response to the Discord channel
+      await interaction.reply(`Image Response: ${imageResponse}`);
+
+      // Send the image as an attachment to the server
+      const channel = client.channels.cache.get(interaction.channelId);
+      const imageBuffer = Buffer.from(imageResponse, 'base64');
+      const attachment = new MessageAttachment(imageBuffer, 'generated_image.png');
+      channel.send({ files: [attachment] });
+    } catch (error) {
+      console.error('Error generating image:', error.message);
+      await interaction.reply('Error generating image. Please try again later.');
+    }
   }
 });
+
+// Function to generate images using the Image Generator API
+async function generateImage(args) {
+  const prompt = args.PROMPT;
+  const requestedModel = args.MODEL;
+
+  try {
+    const response = await axios.post(imageApiUrl, {
+      model: requestedModel,
+      prompt: prompt,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+    }
+
+    const botResponse = response.data.results;
+    return botResponse;
+  } catch (error) {
+    console.error('Error sending prompt to Image Generator', error.message);
+    return `Error: ${error.message}`;
+  }
+}
 
 client.login(token);
