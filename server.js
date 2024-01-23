@@ -1,11 +1,13 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, Intents, MessageAttachment } = require('discord.js');
+const { Client, Intents, MessageAttachment } = require('discord.js');
 const axios = require('axios');
 
 const apiUrl = 'https://reverse.mubi.tech/v1/chat/completions';
 const imageApiUrl = 'https://reverse.mubi.tech/image/generate';
 const token = process.env.DISCORD_TOKEN;
+
+const defaultImageModel = 'openjourney-v4'; // Set the default model to "openjourney-v4"
 
 const client = new Client({
   intents: [
@@ -17,6 +19,36 @@ const client = new Client({
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
+
+  const commands = [
+    {
+      name: 'ask-ai',
+      description: 'Ask AI a question',
+      options: [
+        {
+          name: 'prompt',
+          type: 'STRING',
+          description: 'The prompt for AI',
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'dall-e',
+      description: 'Generate an image',
+      options: [
+        {
+          name: 'prompt',
+          type: 'STRING',
+          description: 'The prompt for image generation',
+          required: true,
+        },
+      ],
+    },
+  ];
+
+  // Register commands globally
+  client.application?.commands.set(commands);
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -48,11 +80,10 @@ client.on('interactionCreate', async (interaction) => {
     }
   } else if (commandName === 'image') {
     const prompt = options.getString('prompt');
-    const requestedModel = options.getString('model');
 
     try {
-      // Call the Image Generator API
-      const imageResponse = await generateImage({ PROMPT: prompt, MODEL: requestedModel });
+      // Call the Image Generator API with the default model
+      const imageResponse = await generateImage({ PROMPT: prompt, MODEL: defaultImageModel });
 
       // Send the Image Generator response to the Discord channel
       await interaction.reply(`Image Response: ${imageResponse}`);
